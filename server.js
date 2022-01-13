@@ -22,23 +22,21 @@ var domains = [];
 var HOSTS = {};
 
 function model(name, config, output, cb) {
-    fs.readFile(__dirname + '/tpl/'+name+'.conf', 'utf-8', function(e, r) {
+    fs.readFile(__dirname + '/tpl/' + name + '.conf', 'utf-8', function(e, r) {
         var tpl = Handlebars.compile(r);
         var out = tpl(config);
-        fs.unlink(output,function() {
+        fs.unlink(output, function() {
             fs.writeFile(output, out, function(e) {
                 if (e) return cb(e);
                 cb(null, out);
-            })
-        })
+            });
+        });
     });
 }
 
-
-
 var dir_nginx = '/etc/nginx';
 var dir_certs = '/etc/certs';
-var dir_offline = '/etc/offline';
+var dir_offline = '/var/offline';
 var dir_www = '/var/www';
 
 /*
@@ -104,29 +102,35 @@ function check_cert(d, cb) {
                     email: certificates.domains.email,
                     api_key: creds.api_key,
                 });
-                shelljs.exec(cmd, {
-                    silent: false
-                }, function(e, r) {
-
-                    if (e == 0) return cb(true);
-                    else return cb(false);
-                });
+                shelljs.exec(
+                    cmd, {
+                        silent: false,
+                    },
+                    function(e, r) {
+                        if (e == 0) return cb(true);
+                        else return cb(false);
+                    }
+                );
             } else {
                 // ... and unmanaged domain
                 var cmd = Handlebars.compile(settings.unmanaged);
-                if (!certificates.domains.email) certificates.domains.email = 'omneedia.rulez@host.com';
+                if (!certificates.domains.email)
+                    certificates.domains.email = 'omneedia.rulez@host.com';
                 cmd = cmd({
                     dir_certs: dir_certs + ':/etc/letsencrypt',
                     dir_certbot: dir_www + '/certbot:/var/www/certbot',
                     email: certificates.domains.email,
                     domain: d,
                 });
-                shelljs.exec(cmd, {
-                    silent: false
-                }, function(e, r) {
-                    if (e == 0) return cb(true, d);
-                    else return cb(false, d);
-                });
+                shelljs.exec(
+                    cmd, {
+                        silent: false,
+                    },
+                    function(e, r) {
+                        if (e == 0) return cb(true, d);
+                        else return cb(false, d);
+                    }
+                );
             }
         } else {
             // the certificate exists already
@@ -159,65 +163,78 @@ var update = function(service) {
             var filename = 'nginx-ssl-temp';
             var my_domain = vhost;
         }
-        
-        model(filename, {
-            vhost: vhost,
-            port: port,
-            ip: ip,
-            protocol: protocol,
-            domain: my_domain,
-        }, dir_nginx + '/sites-enabled/' + vhost + '.conf', function() {
 
-            check_cert(my_domain, function(o, domain) {
-                if (domain) {
-                    // unmanaged domain
-                    if (certificates.domains.unmanaged.indexOf(domain) == -1) {
-                        certificates.domains.unmanaged.push(domain);
-                        updateCertificates();
+        model(
+            filename, {
+                vhost: vhost,
+                port: port,
+                ip: ip,
+                protocol: protocol,
+                domain: my_domain,
+            },
+            dir_nginx + '/sites-enabled/' + vhost + '.conf',
+            function() {
+                check_cert(my_domain, function(o, domain) {
+                    if (domain) {
+                        // unmanaged domain
+                        if (certificates.domains.unmanaged.indexOf(domain) == -1) {
+                            certificates.domains.unmanaged.push(domain);
+                            updateCertificates();
+                        }
+                        var filename = 'nginx-ssl';
+                        model(
+                            filename, {
+                                vhost: vhost,
+                                port: port,
+                                ip: ip,
+                                protocol: protocol,
+                                domain: my_domain,
+                            },
+                            dir_nginx + '/sites-enabled/' + vhost + '.conf',
+                            function() {
+                                deploy(host, ndx + 1, cb);
+                            }
+                        );
+                    } else {
+                        var provider = get_cert_provider(vhost);
+                        var zi_host = is_managed_domain(vhost);
+                        if (certificates.domains.managed[provider].indexOf(zi_host) == -1) {
+                            certificates.domains.managed[provider].push(zi_host);
+                            updateCertificates();
+                        }
+                        cb();
                     }
-                    var filename = 'nginx-ssl';
-                    model(filename, {
-                        vhost: vhost,
-                        port: port,
-                        ip: ip,
-                        protocol: protocol,
-                        domain: my_domain,
-                    }, dir_nginx + '/sites-enabled/' + vhost + '.conf', function() {
-                        deploy(host, ndx + 1, cb);
-                    })
-
-                } else {
-                    var provider = get_cert_provider(vhost);
-                    var zi_host = is_managed_domain(vhost);
-                    if (certificates.domains.managed[provider].indexOf(zi_host) == -1) {
-                        certificates.domains.managed[provider].push(zi_host);
-                        updateCertificates();
-                    }
-                    cb();
-                }
-            });
-
-
-        });
+                });
+            }
+        );
     }
     deploy(hosts, 0, function() {
-        var o={};
-        if (labels.title) o.title=labels.title; else o.title=hosts[0].split(':')[0];
-        if (labels.icon) o.icon=labels.icon; else o.icon='/offline/cloud.png';
-        fs.mkdir(dir_offline+'/'+hosts[0].split(':')[0],function() {
-            model('web-offline',o,dir_offline+'/'+hosts[0].split(':')[0]+'/index.html',function() {
-                console.log(` > ${hosts.join(',')} deployed.`);
-            })
-        })
+        var o = {};
+        if (labels.title) o.title = labels.title;
+        else o.title = hosts[0].split(':')[0];
+        if (labels.icon) o.icon = labels.icon;
+        else o.icon = '/offline/cloud.png';
+        fs.mkdir(dir_offline + '/' + hosts[0].split(':')[0], function() {
+            model(
+                'web-offline',
+                o,
+                dir_offline + '/' + hosts[0].split(':')[0] + '/index.html',
+                function() {
+                    console.log(` > ${hosts.join(',')} deployed.`);
+                }
+            );
+        });
     });
 };
 
 app.use('/offline', express.static(__dirname + '/tpl/offline'));
 
 function updateCertificates() {
-    fs.writeFile(dir_nginx + '/certs.yml', yaml.stringify(certificates), function() {
-
-    });
+    fs.writeFile(
+        dir_nginx + '/certs.yml',
+        yaml.stringify(certificates),
+        function() {}
+    );
 }
 
 function readCertificates(cb) {
@@ -229,18 +246,24 @@ function readCertificates(cb) {
 
 function create_default_page(vhosts, ndx) {
     if (!vhosts[ndx]) return;
-    fs.stat(dir_nginx + '/sites-enabled/_.' + vhosts[ndx] + '.conf', function(e, s) {
-        if (s) return create_default_page(vhosts, ndx + 1);
-        check_cert(vhosts[ndx], function() {
-            model('nginx-default', {
-                domain: vhosts[ndx],
-                root: '/var/www'
-            }, dir_nginx + '/sites-enabled/_.' + vhosts[ndx] + '.conf', function() {
-                create_default_page(vhosts, ndx + 1);
-            })
-        })
-    });
-
+    fs.stat(
+        dir_nginx + '/sites-enabled/_.' + vhosts[ndx] + '.conf',
+        function(e, s) {
+            if (s) return create_default_page(vhosts, ndx + 1);
+            check_cert(vhosts[ndx], function() {
+                model(
+                    'nginx-default', {
+                        domain: vhosts[ndx],
+                        root: '/var/www',
+                    },
+                    dir_nginx + '/sites-enabled/_.' + vhosts[ndx] + '.conf',
+                    function() {
+                        create_default_page(vhosts, ndx + 1);
+                    }
+                );
+            });
+        }
+    );
 }
 
 function updateCertConfig(init) {
@@ -253,14 +276,14 @@ function updateCertConfig(init) {
             certificates = {
                 credentials: {
                     cloudflare: {
-                        login: "",
-                        api_key: ""
-                    }
+                        login: '',
+                        api_key: '',
+                    },
                 },
                 domains: {
-                    email: "awesome.omneedia@host.com",
+                    email: 'awesome.omneedia@host.com',
                     managed: {
-                        cloudflare: []
+                        cloudflare: [],
                     },
                     unmanaged: [],
                 },
@@ -270,39 +293,41 @@ function updateCertConfig(init) {
 
         var vhosts = [];
         for (var el in certificates.domains.managed) {
-            for (var i = 0; i < certificates.domains.managed[el].length; i++) vhosts.push(certificates.domains.managed[el][i]);
+            for (var i = 0; i < certificates.domains.managed[el].length; i++)
+                vhosts.push(certificates.domains.managed[el][i]);
         }
         create_default_page(vhosts, 0);
 
         emitter.on('*', function(message) {
-            if (message.status=="destroy") {
-                var labels=message.actor.Attributes;
-                var vhost=labels.hosts.split(' ')[0].split(':')[0];
-                if (is_managed_domain(vhost)) var domain=is_managed_domain(vhost); else var domain=vhost;
-                model('nginx-offline',{
-                    vhost: vhost,
-                    domain: domain,
-                    root: '/var/offline/'+vhost
-                },dir_nginx + '/sites-enabled/' + vhost + '.conf',function() {
-                    console.log(' - '+domain+' removed.')
-                });
+            if (message.status == 'destroy') {
+                var labels = message.actor.Attributes;
+                var vhost = labels.hosts.split(' ')[0].split(':')[0];
+                if (is_managed_domain(vhost)) var domain = is_managed_domain(vhost);
+                else var domain = vhost;
+                model(
+                    'nginx-offline', {
+                        vhost: vhost,
+                        domain: domain,
+                        root: '/var/offline/' + vhost,
+                    },
+                    dir_nginx + '/sites-enabled/' + vhost + '.conf',
+                    function() {
+                        console.log(' - ' + domain + ' removed.');
+                    }
+                );
             }
             if (message.type == 'service') {
-                
                 if (message.action == 'create') {
                     var service = docker.getService(message.actor.ID);
-                    service
-                    .inspect(service.ID)
-                    .then(function(info) {
+                    service.inspect(service.ID).then(function(info) {
                         var labels = info.Spec.TaskTemplate.ContainerSpec.Labels;
                         if (labels.hosts) {
                             HOSTS[info.id] = info;
                             update(info);
                         }
-                    })
+                    });
                 }
             }
-            
         });
 
         docker.listServices().then(function(services) {
@@ -326,14 +351,14 @@ function updateCertConfig(init) {
                 var certificates = {
                     credentials: {
                         cloudflare: {
-                            login: "",
-                            api_key: ""
-                        }
+                            login: '',
+                            api_key: '',
+                        },
                     },
                     domains: {
-                        email: "awesome.omneedia@host.com",
+                        email: 'awesome.omneedia@host.com',
                         managed: {
-                            cloudflare: []
+                            cloudflare: [],
                         },
                         unmanaged: [],
                     },
@@ -343,7 +368,8 @@ function updateCertConfig(init) {
 
             var vhosts = [];
             for (var el in certificates.domains.managed) {
-                for (var i = 0; i < certificates.domains.managed[el].length; i++) vhosts.push(certificates.domains.managed[el][i]);
+                for (var i = 0; i < certificates.domains.managed[el].length; i++)
+                    vhosts.push(certificates.domains.managed[el][i]);
             }
             create_default_page(vhosts, 0);
             //console.log(r);
