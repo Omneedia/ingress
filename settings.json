@@ -1,0 +1,5 @@
+{
+  "cloudflare": "docker run -i --rm -v {{dir_certs}} -e SUBDOMAINS=wildcard -e DOMAIN_NAME={{domain}} -e CERTBOT_EMAIL={{login}} -e CLOUDFLARE_EMAIL={{email}} -e CLOUDFLARE_API_KEY={{api_key}} single9/wildcard-letsencrypt",
+  "unmanaged": "docker run --rm -i -v {{dir_certs}} -v {{dir_certbot}} certbot/certbot certonly --webroot -w /var/www/certbot --email {{email}} -d {{domain}} --rsa-key-size 4096 --agree-tos -n",
+  "renew": "docker run --rm -i -v {{dir_certs}} -v {{dir_certbot}} renew"
+}
