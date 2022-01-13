@@ -1,6 +1,5 @@
 require('dotenv').config();
 
-const express = require('express');
 const yaml = require('yaml');
 const DockerEvents = require('docker-events2');
 const Docker = require('dockerode');
@@ -13,8 +12,6 @@ var certificates;
 
 const pkg = require('./package.json');
 const settings = require('./settings.json');
-
-var app = express();
 
 var docker = new Docker();
 if (!process.env['MANAGED_DOMAINS']) process.env['MANAGED_DOMAINS'] = [];
@@ -229,8 +226,6 @@ var update = function(service) {
     });
 };
 
-app.use('/offline', express.static(__dirname + '/tpl/offline'));
-
 function updateCertificates() {
     fs.writeFile(
         dir_nginx + '/certs.yml',
@@ -408,7 +403,3 @@ chokidar
         console.log(' * cert updated...');
         updateCertConfig();
     });
-
-app.listen(8000, function() {
-    console.log(' - server started.\n');
-});
