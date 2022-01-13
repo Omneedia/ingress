@@ -216,8 +216,8 @@ var update = function(service) {
         var _vhost;
         var vhost = hosts[0];
         if (vhost.indexOf('_.') > -1) {
-            _vhost = hosts[0].split(':')[0].split('_.')[1];
-        }
+            _vhost = vhost.split(':')[0].split('_.')[1];
+        } else _vhost = hosts[0];
         if (labels.title) o.title = labels.title;
         else {
             o.title = _vhost;
