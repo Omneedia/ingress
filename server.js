@@ -150,8 +150,8 @@ var update = function(service) {
             protocol = 'https';
             vhost = vhost.split('!')[1];
         }
-        if (vhost.indexOf('*.') > -1)
-            vhost = vhost.split('*.')[1] + ' _.' + vhost.split('*.')[1];
+        if (vhost.indexOf('_.') > -1)
+            vhost = vhost.split('_.')[1] + ' _.' + vhost.split('_.')[1];
         var port = host[ndx].split(':')[1];
         console.log(' > registering ' + vhost);
 
