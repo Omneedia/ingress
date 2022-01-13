@@ -148,13 +148,15 @@ var update = function(service) {
     function deploy(host, ndx, cb) {
         if (!host[ndx]) return cb();
         var vhost = host[ndx].split(':')[0];
-        var port = host[ndx].split(':')[1];
-        console.log(' > registering ' + vhost);
         var protocol = 'http';
         if (vhost.indexOf('!') > -1) {
             protocol = 'https';
             vhost = vhost.split('!')[1];
         }
+        if (vhost.indexOf('*.') > -1)
+            vhost = vhost.split('*.')[1] + ' _.' + vhost.split('*.')[1];
+        var port = host[ndx].split(':')[1];
+        console.log(' > registering ' + vhost);
 
         if (is_managed_domain(vhost)) {
             var filename = 'nginx-ssl';
