@@ -214,6 +214,7 @@ var update = function(service) {
     deploy(hosts, 0, function() {
         var o = {};
         var _vhost;
+        var vhost = hosts[0];
         if (vhost.indexOf('_.') > -1) {
             _vhost = hosts[0].split(':')[0].split('_.')[1];
         }
