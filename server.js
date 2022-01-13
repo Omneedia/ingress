@@ -145,15 +145,10 @@ var update = function(service) {
     function deploy(host, ndx, cb) {
         if (!host[ndx]) return cb();
         var vhost = host[ndx].split(':')[0];
-        var vhost_filename = host[ndx].split(':')[0];
         var protocol = 'http';
         if (vhost.indexOf('!') > -1) {
             protocol = 'https';
             vhost = vhost.split('!')[1];
-        }
-        if (vhost.indexOf('_.') > -1) {
-            vhost_filename = host[ndx].split(':')[0].split('_.')[1];
-            vhost = vhost.split('_.')[1] + ' _.' + vhost.split('_.')[1];
         }
 
         var port = host[ndx].split(':')[1];
@@ -175,7 +170,7 @@ var update = function(service) {
                 protocol: protocol,
                 domain: my_domain,
             },
-            dir_nginx + '/sites-enabled/' + vhost_filename + '.conf',
+            dir_nginx + '/sites-enabled/' + vhost + '.conf',
             function() {
                 check_cert(my_domain, function(o, domain) {
                     if (domain) {
@@ -193,7 +188,7 @@ var update = function(service) {
                                 protocol: protocol,
                                 domain: my_domain,
                             },
-                            dir_nginx + '/sites-enabled/' + vhost_filename + '.conf',
+                            dir_nginx + '/sites-enabled/' + vhost + '.conf',
                             function() {
                                 deploy(host, ndx + 1, cb);
                             }
@@ -213,24 +208,17 @@ var update = function(service) {
     }
     deploy(hosts, 0, function() {
         var o = {};
-        var _vhost;
-        var vhost = hosts[0];
-        if (vhost.indexOf('_.') > -1) {
-            _vhost = vhost.split(':')[0].split('_.')[1];
-        } else _vhost = hosts[0];
         if (labels.title) o.title = labels.title;
-        else {
-            o.title = _vhost;
-        }
+        else o.title = hosts[0].split(':')[0];
         if (labels.icon) o.icon = labels.icon;
         else o.icon = '/offline/cloud.png';
-        fs.mkdir(dir_offline + '/' + _vhost, function() {
+        fs.mkdir(dir_offline + '/' + hosts[0].split(':')[0], function() {
             model(
                 'web-offline',
                 o,
-                dir_offline + '/' + _vhost + '/index.html',
+                dir_offline + '/' + hosts[0].split(':')[0] + '/index.html',
                 function() {
-                    console.log(` > ${_vhost} deployed.`);
+                    console.log(` > ${hosts.join(',')} deployed.`);
                 }
             );
         });
