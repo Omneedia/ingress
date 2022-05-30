@@ -296,6 +296,7 @@ function updateCertConfig(init) {
         emitter.on('*', function(message) {
             if (message.status == 'destroy') {
                 var labels = message.actor.Attributes;
+                console.log(message);
                 var vhost = labels.hosts.split(' ')[0].split(':')[0];
                 if (is_managed_domain(vhost)) var domain = is_managed_domain(vhost);
                 else var domain = vhost;
